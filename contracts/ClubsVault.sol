@@ -18,6 +18,9 @@ contract ClubsVault is Initializable {
 	mapping(address => mapping(address => uint256)) public releasedTokensOfUser;
 	// token => user => amount
 	mapping(address => mapping(address => uint256)) public lastBalanceOfUser;
+	// token => user => index
+	mapping(address => mapping(address => uint256))
+		public lastCalculatedIndexOfUser;
 
 	// errors
 	error InsufficientAllowance(uint256 required, uint256 available);
@@ -74,75 +77,43 @@ contract ClubsVault is Initializable {
 			return;
 		}
 
-		uint256 nReceiving = ITransferHistory(withdAddress)
+		uint256 historyIndex = ITransferHistory(withdAddress)
 			.transferHistoryLengthOfRecipient(propertyAddress, _user);
-		uint256 nSending = ITransferHistory(withdAddress)
-			.transferHistoryLengthOfSender(propertyAddress, _user);
-		bool done = false;
-		uint256 plus = 0;
-		uint256 minus = 0;
+		uint256 i = historyIndex;
+		uint256 lastIndex = lastCalculatedIndexOfUser[_token][_user];
 
-		while (nReceiving + nSending > 0 && !done) {
-			if (nReceiving > 0) {
-				ITransferHistory.TransferHistory
-					memory history = ITransferHistory(withdAddress)
-						.transferHistory(
+		while (i > 0 && i > lastIndex) {
+			ITransferHistory.TransferHistory memory history = ITransferHistory(
+				withdAddress
+			).transferHistory(
+					propertyAddress,
+					ITransferHistory(withdAddress)
+						.transferHistoryOfRecipientByIndex(
 							propertyAddress,
-							ITransferHistory(withdAddress)
-								.transferHistoryOfRecipientByIndex(
-									propertyAddress,
-									_user,
-									nReceiving
-								)
-						);
-				if (!history.filled) {
-					history.amount =
-						_currentPropertyBalance -
-						history.preBalanceOfRecipient;
-				}
-				updateReleasedTokens(
-					_token,
-					history.from,
-					property.balanceOf(history.from)
+							_user,
+							i - 1
+						)
 				);
-				uint256 releasedTokens = releasedTokensOfUser[_token][
-					history.from
-				];
-				uint256 partOfReleasedTokens = (releasedTokens *
-					history.preBalanceOfSender) / history.amount;
-				releasedTokensOfUser[_token][_user] =
-					partOfReleasedTokens +
-					releasedTokensOfUser[_token][_user];
-				plus = plus + history.amount;
-
-				nReceiving--;
+			if (!history.filled) {
+				history.amount =
+					_currentPropertyBalance -
+					history.preBalanceOfRecipient;
 			}
-			if (nSending > 0) {
-				ITransferHistory.TransferHistory
-					memory history = ITransferHistory(withdAddress)
-						.transferHistory(
-							propertyAddress,
-							ITransferHistory(withdAddress)
-								.transferHistoryOfSenderByIndex(
-									propertyAddress,
-									_user,
-									nSending
-								)
-						);
-				if (!history.filled) {
-					history.amount =
-						history.preBalanceOfSender -
-						_currentPropertyBalance;
-				}
-				minus = minus + history.amount;
+			updateReleasedTokens(
+				_token,
+				history.from,
+				property.balanceOf(history.from)
+			);
+			uint256 releasedTokens = releasedTokensOfUser[_token][history.from];
+			uint256 partOfReleasedTokens = (releasedTokens *
+				history.preBalanceOfSender) / history.amount;
+			releasedTokensOfUser[_token][_user] =
+				partOfReleasedTokens +
+				releasedTokensOfUser[_token][_user];
 
-				nSending--;
-			}
-
-			done =
-				lastBalanceOfUser[_token][_user] + plus - minus ==
-				_currentPropertyBalance;
+			i--;
 		}
+		lastCalculatedIndexOfUser[_token][_user] = historyIndex;
 	}
 
 	function withdraw(address _token, address _user) external {
