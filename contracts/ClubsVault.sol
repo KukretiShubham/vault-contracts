@@ -68,17 +68,19 @@ contract ClubsVault is Initializable {
 		uint256 _currentPropertyBalance
 	) private {
 		IERC20 property = IERC20(propertyAddress);
-		if (lastBalanceOfUser[_token][_user] == _currentPropertyBalance) {
+		if (lastBalanceOfUser[_token][_user] >= _currentPropertyBalance) {
+			// If the current user balance is smaller or equal to the last balance, no need to update `releasedTokensOfUser`.
+			// Because in that case, the value of `releasedTokensOfUser` is always greater than the withdrawable amount, so no double payment occurs.
 			return;
 		}
 
-		uint256 historyIndex = ITransferHistory(withdAddress)
+		// historyLength is similar to Array.length and matches the number of values ​​it has.
+		uint256 historyLength = ITransferHistory(withdAddress)
 			.transferHistoryLength(propertyAddress);
-		bool done = false;
-		uint256 i = historyIndex;
-		uint256 calculated = 0;
+		uint256 count = 0;
+		uint256 i = historyLength > 0 ? historyLength - 1 : 0;
 
-		while (i >= 0 || !done) {
+		while (historyLength - count > 0) {
 			ITransferHistory.TransferHistory memory history = ITransferHistory(
 				withdAddress
 			).transferHistory(
@@ -104,17 +106,14 @@ contract ClubsVault is Initializable {
 			uint256 releasedTokens = releasedTokensOfUser[_token][history.from];
 			uint256 partOfReleasedTokens = (releasedTokens *
 				history.preBalanceOfSender) / history.amount;
-			
+
 			releasedTokensOfUser[_token][_user] =
 				partOfReleasedTokens +
 				releasedTokensOfUser[_token][_user];
 
-			i = i - 1;
+			i = i > 0 ? i - 1 : i;
 
-			calculated = calculated + history.amount;
-			done =
-				lastBalanceOfUser[_token][_user] + calculated ==
-				_currentPropertyBalance;
+			count++;
 		}
 	}
 
@@ -132,9 +131,9 @@ contract ClubsVault is Initializable {
 		uint256 released = releasedTokensOfUser[_token][_user];
 		uint256 propertyTotalSupply = property.totalSupply();
 
-		uint256 payment = (totalReceivedTokens * userBalance) /
-			propertyTotalSupply -
-			released;
+		uint256 total = (totalReceivedTokens * userBalance) /
+			propertyTotalSupply;
+		uint256 payment = total > released ? total - released : 0;
 
 		// Update global state
 		releasedTokensOfUser[_token][_user] = released + payment;
