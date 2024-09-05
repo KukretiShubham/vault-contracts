@@ -2,78 +2,147 @@
 pragma solidity =0.8.24;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ITransferHistory} from "./interfaces/ITransferHistory.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 
 contract ClubsVault is Initializable {
 	address public propertyAddress;
+	address public withdAddress;
 	uint256 public totalDeposits;
 
-
 	// token => bool
-	mapping( address => bool) public isAllowListed;
+	mapping(address => bool) public isAllowListed;
 	// token => amount
-	mapping (address => uint256) public totalReleasedTokens;
+	mapping(address => uint256) public totalReleasedTokens;
 	// token => user => amount
-	mapping (address => mapping(address => uint256)) public releasedTokensOfUser;
-	
+	mapping(address => mapping(address => uint256)) public releasedTokensOfUser;
+	// token => user => amount
+	mapping(address => mapping(address => uint256)) public lastBalanceOfUser;
+
 	// errors
 	error InsufficientAllowance(uint256 required, uint256 available);
-	event Deposited(
-		uint256 amount
-	);
+	event Deposited(uint256 amount);
 
-	event Withdrawn(
-		uint256 amount
-	);
+	event Withdrawn(address token, address user, uint256 amount);
 
-	function initialize(address _propertyAddress) external initializer {
+	function initialize(
+		address _propertyAddress,
+		address _withdrawAddress
+	) external initializer {
 		propertyAddress = _propertyAddress;
+		withdAddress = _withdrawAddress;
 	}
 
 	function deposit(uint256 _amount, address _token) external {
 		IERC20 token = IERC20(_token);
 		if (token.allowance(msg.sender, address(this)) < _amount) {
-			revert InsufficientAllowance(_amount, token.allowance(msg.sender, address(this)));
+			revert InsufficientAllowance(
+				_amount,
+				token.allowance(msg.sender, address(this))
+			);
 		}
 		token.transferFrom(msg.sender, address(this), _amount);
 		totalDeposits += _amount;
 		emit Deposited(_amount);
 	}
 
-	function calculateClaimableTokens(address _user, address _token) external view returns (uint256) {
-		IERC20 share = IERC20(propertyAddress);
-		uint256 userTokenBalance = share.balanceOf(_user);
-        uint256 totalTokenSupply = share.totalSupply();
+	// function calculateClaimableTokens(
+	// 	address _user,
+	// 	address _token
+	// ) external view returns (uint256) {
+	// 	IERC20 share = IERC20(propertyAddress);
+	// 	uint256 userTokenBalance = share.balanceOf(_user);
+	// 	uint256 totalTokenSupply = share.totalSupply();
 
-        // Calculate user's share of the treasury
-        uint256 userShare = (userTokenBalance * totalDeposits) / totalTokenSupply;
-        uint256 userClaimed = releasedTokensOfUser[_token][_user];
+	// 	// Calculate user's share of the treasury
+	// 	uint256 userShare = (userTokenBalance * totalDeposits) /
+	// 		totalTokenSupply;
+	// 	uint256 userClaimed = releasedTokensOfUser[_token][_user];
 
-        // Return the remaining claimable balance
-        return userShare - userClaimed;
-	}
-	function updateReleasedTokens (address _token, address _user, uint256 _currentPropertyBalance) private {
+	// 	// Return the remaining claimable balance
+	// 	return userShare - userClaimed;
+	// }
+	function updateReleasedTokens(
+		address _token,
+		address _user,
+		uint256 _currentPropertyBalance
+	) private {
+		IERC20 property = IERC20(propertyAddress);
+		if (lastBalanceOfUser[_token][_user] == _currentPropertyBalance) {
+			return;
+		}
 
+		uint256 historyIndex = ITransferHistory(withdAddress)
+			.transferHistoryLength(propertyAddress);
+		bool done = false;
+		uint256 i = historyIndex;
+		uint256 calculated = 0;
+
+		while (i >= 0 || !done) {
+			ITransferHistory.TransferHistory memory history = ITransferHistory(
+				withdAddress
+			).transferHistory(
+					propertyAddress,
+					ITransferHistory(withdAddress)
+						.transferHistoryOfRecipientByIndex(
+							propertyAddress,
+							_user,
+							i
+						)
+				);
+			if (!history.filled) {
+				history.amount =
+					_currentPropertyBalance -
+					history.preBalanceOfRecipient;
+			}
+			updateReleasedTokens(
+				_token,
+				history.from,
+				property.balanceOf(history.from)
+			);
+
+			uint256 releasedTokens = releasedTokensOfUser[_token][history.from];
+			uint256 partOfReleasedTokens = (releasedTokens *
+				history.preBalanceOfSender) / history.amount;
+			
+			releasedTokensOfUser[_token][_user] =
+				partOfReleasedTokens +
+				releasedTokensOfUser[_token][_user];
+
+			i = i - 1;
+
+			calculated = calculated + history.amount;
+			done =
+				lastBalanceOfUser[_token][_user] + calculated ==
+				_currentPropertyBalance;
+		}
 	}
 
 	function withdraw(address _token, address _user) external {
 		IERC20 property = IERC20(propertyAddress);
 		IERC20 token = IERC20(_token);
 
-		uint256 totalReceivedTokens = token.balanceOf(address(this)) + totalReleasedTokens[_token];
-		
+		uint256 totalReceivedTokens = token.balanceOf(address(this)) +
+			totalReleasedTokens[_token];
+
 		uint256 userBalance = property.balanceOf(_user);
 
 		updateReleasedTokens(_token, _user, userBalance);
 
 		uint256 released = releasedTokensOfUser[_token][_user];
-		uint propertyTotalSupply = property.totalSupply();
+		uint256 propertyTotalSupply = property.totalSupply();
 
-		uint256 payment = (totalReceivedTokens * userBalance) / propertyTotalSupply - released;
+		uint256 payment = (totalReceivedTokens * userBalance) /
+			propertyTotalSupply -
+			released;
 
+		// Update global state
+		releasedTokensOfUser[_token][_user] = released + payment;
+		totalReleasedTokens[_token] += payment;
+		lastBalanceOfUser[_token][_user] = userBalance;
 
-		emit Withdrawn();
+		// Transfer the tokens to the user
+		token.transfer(_user, payment);
+		emit Withdrawn(_token, _user, payment);
 	}
-
 }
