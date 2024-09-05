@@ -74,46 +74,74 @@ contract ClubsVault is Initializable {
 			return;
 		}
 
-		// historyLength is similar to Array.length and matches the number of values ​​it has.
-		uint256 historyLength = ITransferHistory(withdAddress)
-			.transferHistoryLength(propertyAddress);
-		uint256 count = 0;
-		uint256 i = historyLength > 0 ? historyLength - 1 : 0;
+		uint256 nReceiving = ITransferHistory(withdAddress)
+			.transferHistoryLengthOfRecipient(propertyAddress, _user);
+		uint256 nSending = ITransferHistory(withdAddress)
+			.transferHistoryLengthOfSender(propertyAddress, _user);
+		bool done = false;
+		uint256 plus = 0;
+		uint256 minus = 0;
 
-		while (historyLength - count > 0) {
-			ITransferHistory.TransferHistory memory history = ITransferHistory(
-				withdAddress
-			).transferHistory(
-					propertyAddress,
-					ITransferHistory(withdAddress)
-						.transferHistoryOfRecipientByIndex(
+		while (nReceiving + nSending > 0 && !done) {
+			if (nReceiving > 0) {
+				ITransferHistory.TransferHistory
+					memory history = ITransferHistory(withdAddress)
+						.transferHistory(
 							propertyAddress,
-							_user,
-							i
-						)
+							ITransferHistory(withdAddress)
+								.transferHistoryOfRecipientByIndex(
+									propertyAddress,
+									_user,
+									nReceiving
+								)
+						);
+				if (!history.filled) {
+					history.amount =
+						_currentPropertyBalance -
+						history.preBalanceOfRecipient;
+				}
+				updateReleasedTokens(
+					_token,
+					history.from,
+					property.balanceOf(history.from)
 				);
-			if (!history.filled) {
-				history.amount =
-					_currentPropertyBalance -
-					history.preBalanceOfRecipient;
+				uint256 releasedTokens = releasedTokensOfUser[_token][
+					history.from
+				];
+				uint256 partOfReleasedTokens = (releasedTokens *
+					history.preBalanceOfSender) / history.amount;
+				releasedTokensOfUser[_token][_user] =
+					partOfReleasedTokens +
+					releasedTokensOfUser[_token][_user];
+				plus = plus + history.amount;
+
+				nReceiving--;
 			}
-			updateReleasedTokens(
-				_token,
-				history.from,
-				property.balanceOf(history.from)
-			);
+			if (nSending > 0) {
+				ITransferHistory.TransferHistory
+					memory history = ITransferHistory(withdAddress)
+						.transferHistory(
+							propertyAddress,
+							ITransferHistory(withdAddress)
+								.transferHistoryOfSenderByIndex(
+									propertyAddress,
+									_user,
+									nSending
+								)
+						);
+				if (!history.filled) {
+					history.amount =
+						history.preBalanceOfSender -
+						_currentPropertyBalance;
+				}
+				minus = minus + history.amount;
 
-			uint256 releasedTokens = releasedTokensOfUser[_token][history.from];
-			uint256 partOfReleasedTokens = (releasedTokens *
-				history.preBalanceOfSender) / history.amount;
+				nSending--;
+			}
 
-			releasedTokensOfUser[_token][_user] =
-				partOfReleasedTokens +
-				releasedTokensOfUser[_token][_user];
-
-			i = i > 0 ? i - 1 : i;
-
-			count++;
+			done =
+				lastBalanceOfUser[_token][_user] + plus - minus ==
+				_currentPropertyBalance;
 		}
 	}
 
