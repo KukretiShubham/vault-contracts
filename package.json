@@ -14,7 +14,7 @@
 		"build": "tsc -p tsconfig.build.json",
 		"prebuild": "yarn generate",
 		"clean": "del 'artifacts'",
-		"prepare": "husky install"
+		"prepare": "husky"
 	},
 	"author": "",
 	"license": "MPL-2.0",
