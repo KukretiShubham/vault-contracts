@@ -43,10 +43,10 @@ contract ClubsVault is Initializable {
 		if (!isAllowListed[_token]) {
 			revert TokenNotAllowed();
 		}
-		if( _token == address(0)){
+		if (_token == address(0)) {
 			// Native token
 			require(msg.value == _amount, "Invalid amount");
-		}else{
+		} else {
 			IERC20 token = IERC20(_token);
 			if (token.allowance(msg.sender, address(this)) < _amount) {
 				revert InsufficientAllowance(
