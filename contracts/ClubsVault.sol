@@ -2,15 +2,17 @@
 pragma solidity =0.8.24;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {ITransferHistory} from "./interfaces/ITransferHistory.sol";
+import {ITransferHistory} from "@devprotocol/protocol-v2/contracts/interface/ITransferHistory.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract ClubsVault is Initializable {
 	address public propertyAddress;
 	address public withdAddress;
-	uint256 public totalDeposits;
 
+	// token => amount
+	mapping(address => uint256) public totalDeposits;
 	// token => bool
+	// Native token is 0x0000000000000000000000000000000000000000 address
 	mapping(address => bool) public isAllowListed;
 	// token => amount
 	mapping(address => uint256) public totalReleasedTokens;
@@ -24,7 +26,8 @@ contract ClubsVault is Initializable {
 
 	// errors
 	error InsufficientAllowance(uint256 required, uint256 available);
-	event Deposited(uint256 amount);
+	error TokenNotAllowed();
+	event Deposited(address token, address user, uint256 amount);
 
 	event Withdrawn(address token, address user, uint256 amount);
 
@@ -36,35 +39,26 @@ contract ClubsVault is Initializable {
 		withdAddress = _withdrawAddress;
 	}
 
-	function deposit(uint256 _amount, address _token) external {
-		IERC20 token = IERC20(_token);
-		if (token.allowance(msg.sender, address(this)) < _amount) {
-			revert InsufficientAllowance(
-				_amount,
-				token.allowance(msg.sender, address(this))
-			);
+	function deposit(uint256 _amount, address _token) external payable {
+		if (!isAllowListed[_token]) {
+			revert TokenNotAllowed();
 		}
-		token.transferFrom(msg.sender, address(this), _amount);
-		totalDeposits += _amount;
-		emit Deposited(_amount);
+		if( _token == address(0)){
+			// Native token
+			require(msg.value == _amount, "Invalid amount");
+		}else{
+			IERC20 token = IERC20(_token);
+			if (token.allowance(msg.sender, address(this)) < _amount) {
+				revert InsufficientAllowance(
+					_amount,
+					token.allowance(msg.sender, address(this))
+				);
+			}
+			token.transferFrom(msg.sender, address(this), _amount);
+		}
+		totalDeposits[_token] += _amount;
+		emit Deposited(_token, msg.sender, _amount);
 	}
-
-	// function calculateClaimableTokens(
-	// 	address _user,
-	// 	address _token
-	// ) external view returns (uint256) {
-	// 	IERC20 share = IERC20(propertyAddress);
-	// 	uint256 userTokenBalance = share.balanceOf(_user);
-	// 	uint256 totalTokenSupply = share.totalSupply();
-
-	// 	// Calculate user's share of the treasury
-	// 	uint256 userShare = (userTokenBalance * totalDeposits) /
-	// 		totalTokenSupply;
-	// 	uint256 userClaimed = releasedTokensOfUser[_token][_user];
-
-	// 	// Return the remaining claimable balance
-	// 	return userShare - userClaimed;
-	// }
 	function updateReleasedTokens(
 		address _token,
 		address _user,

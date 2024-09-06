@@ -80,6 +80,22 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
+"@devprotocol/protocol-v2@^0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@devprotocol/protocol-v2/-/protocol-v2-0.5.1.tgz#dd54b16fea2b6a4e07bf7aca2416b063009e3794"
+  integrity sha512-LBVY1TlFVmJ98qJ+v01cIISjdTXp3DhLhxp6OCT5uzGOsK555YsRh4auNKT0k2nI3ahOcuFDDLVWS6ddTK9MgA==
+  dependencies:
+    "@devprotocol/util-contracts" "3.3.0"
+    "@openzeppelin/contracts" "4.3.2"
+    "@openzeppelin/contracts-upgradeable" "4.3.2"
+
+"@devprotocol/util-contracts@3.3.0":
+  version "3.3.0"
+  resolved "https://registry.yarnpkg.com/@devprotocol/util-contracts/-/util-contracts-3.3.0.tgz#56978e832f12b1796d937b20e57be307f2fcbc07"
+  integrity sha512-5KgaYUcp7tbPIjSzoxE/40pMYqfFdqHsMraKy+ATDWVEy1D7gfdQEvOyx2nMwE/a5pjSO+UDgZP1hclEbnyTRQ==
+  dependencies:
+    "@openzeppelin/contracts" "4.3.0"
+
 "@eslint-community/eslint-utils@^4.2.0", "@eslint-community/eslint-utils@^4.4.0":
   version "4.4.0"
   resolved "https://registry.yarnpkg.com/@eslint-community/eslint-utils/-/eslint-utils-4.4.0.tgz#a23514e8fb9af1269d5f7788aa556798d61c6b59"
@@ -661,10 +677,25 @@
     "@nomicfoundation/solidity-analyzer-linux-x64-musl" "0.1.2"
     "@nomicfoundation/solidity-analyzer-win32-x64-msvc" "0.1.2"
 
+"@openzeppelin/contracts-upgradeable@4.3.2":
+  version "4.3.2"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-4.3.2.tgz#92df481362e366c388fc02133cf793029c744cea"
+  integrity sha512-i/pOaOtcqDk4UqsrOv735uYyTbn6dvfiuVu5hstsgV6c4ZKUtu88/31zT2BzkCg+3JfcwOfgg2TtRKVKKZIGkQ==
+
 "@openzeppelin/contracts-upgradeable@^5.0.2":
   version "5.0.2"
   resolved "https://registry.yarnpkg.com/@openzeppelin/contracts-upgradeable/-/contracts-upgradeable-5.0.2.tgz#3e5321a2ecdd0b206064356798c21225b6ec7105"
   integrity sha512-0MmkHSHiW2NRFiT9/r5Lu4eJq5UJ4/tzlOgYXNAIj/ONkQTVnz22pLxDvp4C4uZ9he7ZFvGn3Driptn1/iU7tQ==
+
+"@openzeppelin/contracts@4.3.0":
+  version "4.3.0"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.3.0.tgz#345236d4ec73ef381ab4907c6ef66fd55e5dedad"
+  integrity sha512-+uBDl/TrmR0Kch6mq3tuxMex/fK7huR6+fQMae+zJk1K5T+dp0pFl12Hbc+1L6oYMXoyDSBJ8zqhRIntrREDFA==
+
+"@openzeppelin/contracts@4.3.2":
+  version "4.3.2"
+  resolved "https://registry.yarnpkg.com/@openzeppelin/contracts/-/contracts-4.3.2.tgz#ff80affd6d352dbe1bbc5b4e1833c41afd6283b6"
+  integrity sha512-AybF1cesONZStg5kWf6ao9OlqTZuPqddvprc0ky7lrUVOjXeKpmQ2Y9FK+6ygxasb+4aic4O5pneFBfwVsRRRg==
 
 "@openzeppelin/contracts@5.0.2":
   version "5.0.2"
