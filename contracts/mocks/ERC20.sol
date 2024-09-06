@@ -2,7 +2,7 @@
 pragma solidity =0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./IWithdraw.sol";
+import {IWithdraw} from "./IWithdraw.sol";
 
 contract MockToken is ERC20 {
 	address public _withdraw;
