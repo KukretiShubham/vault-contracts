@@ -5,25 +5,29 @@ describe('ClubsVault', () => {
 	describe('initialize', () => {
 		describe('success', () => {
 			it('initialize value', async () => {
-				const Example = await ethers.getContractFactory('Example')
-				const example = await upgrades.deployProxy(Example, [3n])
-				const value: bigint = await example.value()
+				const ClubsVault = await ethers.getContractFactory('ClubsVault')
+				const clubsVault = await upgrades.deployProxy(ClubsVault, [3n])
+				const value: bigint = await clubsVault.value()
 				expect(value).to.equal(3n)
 			})
 		})
 		describe('fail', () => {
 			it('should fail to initialize when already initialized', async () => {
-				const Example = await ethers.getContractFactory('Example')
-				const example = await upgrades.deployProxy(Example, [3n])
+				const ClubsVault = await ethers.getContractFactory('ClubsVault')
+				const clubsVault = await upgrades.deployProxy(ClubsVault, [3n])
 
-				await expect(example.initialize(6)).to.be.revertedWithCustomError(
-					example,
+				await expect(clubsVault.initialize(6)).to.be.revertedWithCustomError(
+					clubsVault,
 					'InvalidInitialization',
 				)
-				const value: bigint = await example.value()
+				const value: bigint = await clubsVault.value()
 				expect(value).to.equal(3n)
 			})
 		})
+	})
+	beforeEach(async () => {
+		const ClubsVault = await ethers.getContractFactory('ClubsVault')
+		const clubsVault = await upgrades.deployProxy(ClubsVault, [3n])
 	})
 
 	describe('Scenarios', () => {
